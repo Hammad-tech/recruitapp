@@ -72,12 +72,9 @@ with app.app_context():
         logging.info("Default admin user created: admin/admin123")
 
 if __name__ == '__main__':
-    # Start background services in separate threads
-    import threading
-    from scheduler import start_background_services
+    # Run the Flask application
+    # Note: Background services (email monitoring, scheduling) are handled by N8N
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
     
-    # Start background services
-    bg_thread = threading.Thread(target=start_background_services, daemon=True)
-    bg_thread.start()
-    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug)

@@ -6,9 +6,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from database import db
 from models import User, Job, Candidate, CandidateJobMatch, JobStatus, CandidateStatus, WhatsAppContact
-# Note: job matching is handled externally by n8n.  We no longer import
-# job matching functions here.
-from cv_parser import parse_cv_file
+# Note: CV parsing, job matching, and email processing are handled externally by N8N
+# This app only provides the frontend dashboard and API endpoints
 import logging
 
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx'}
