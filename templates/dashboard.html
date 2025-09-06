@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i data-feather="home"></i>
+            Dashboard
+        </h1>
+        <div class="text-muted">
+            <small>Last updated: <span id="last-updated">Just now</span></small>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" id="total-jobs">{{ total_jobs }}</h3>
+                            <small>Active Jobs</small>
+                        </div>
+                        <i data-feather="briefcase" style="width: 2rem; height: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" id="total-candidates">{{ total_candidates }}</h3>
+                            <small>Total Candidates</small>
+                        </div>
+                        <i data-feather="users" style="width: 2rem; height: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" id="new-candidates">{{ new_candidates }}</h3>
+                            <small>New Candidates</small>
+                        </div>
+                        <i data-feather="user-plus" style="width: 2rem; height: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0" id="high-matches">{{ high_matches }}</h3>
+                            <small>High Matches (80+)</small>
+                        </div>
+                        <i data-feather="star" style="width: 2rem; height: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Candidates -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i data-feather="clock"></i>
+                        Recent Candidates
+                    </h5>
+                    <a href="{{ url_for('candidates') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_candidates %}
+                        <div class="list-group list-group-flush">
+                            {% for candidate in recent_candidates %}
+                            <div class="list-group-item border-0 px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold">{{ candidate.name }}</div>
+                                        <div class="text-muted small">{{ candidate.email }}</div>
+                                        {% if candidate.skills %}
+                                        <div class="mt-1">
+                                            {% for skill in candidate.skills[:3] %}
+                                                <span class="badge bg-primary me-1">{{ skill }}</span>
+                                            {% endfor %}
+                                            {% if candidate.skills|length > 3 %}
+                                                <span class="badge bg-light text-dark">+{{ candidate.skills|length - 3 }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        <div class="mt-1">
+                                            {% if candidate.source %}
+                                                <span class="badge bg-secondary me-1">{{ candidate.source|title }}</span>
+                                            {% endif %}
+                                            {% if candidate.experience_years %}
+                                                <span class="badge bg-info">{{ candidate.experience_years }} years</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted">Recently added</small>
+                                        <br>
+                                        <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">View</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i data-feather="inbox" style="width: 3rem; height: 3rem;" class="text-muted"></i>
+                            <p class="text-muted mt-2">No candidates yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Matches -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="target"></i>
+                        Top Matches (70%+)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if high_scoring_matches %}
+                        <div class="list-group list-group-flush">
+                            {% for match, candidate, job in high_scoring_matches %}
+                            <div class="list-group-item border-0 px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold">{{ candidate.name }}</div>
+                                        <div class="text-muted small">{{ job.title }}</div>
+                                        <div class="small mt-1">
+                                            <span class="badge bg-{{ 'success' if match.match_score >= 90 else 'info' if match.match_score >= 80 else 'warning' }}">
+                                                {{ match.match_score }}% match
+                                            </span>
+                                            {% if match.matching_skills %}
+                                                <span class="badge bg-success me-1">{{ match.matching_skills|length }} skills match</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if candidate.skills %}
+                                        <div class="mt-1">
+                                            {% for skill in candidate.skills[:2] %}
+                                                <span class="badge bg-primary me-1">{{ skill }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">View</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i data-feather="search" style="width: 3rem; height: 3rem;" class="text-muted"></i>
+                            <p class="text-muted mt-2">No high matches yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="zap"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('create_job') }}" class="btn btn-primary btn-lg w-100">
+                                <i data-feather="plus-circle" class="me-2"></i>
+                                Post New Job
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="alert alert-info p-3">
+                                <i data-feather="zap" class="me-2"></i>
+                                <strong>N8N Automation</strong><br>
+                                <small>CVs processed automatically</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('candidates') }}?status=new" class="btn btn-warning btn-lg w-100">
+                                <i data-feather="eye" class="me-2"></i>
+                                Review New
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-info btn-lg w-100" onclick="refreshDashboard()">
+                                <i data-feather="refresh-cw" class="me-2"></i>
+                                Refresh Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh dashboard stats every 30 seconds
+let autoRefreshInterval;
+
+function refreshDashboard() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.stats) {
+                // Data is in the correct format from /api/stats
+                const stats = data.stats;
+                document.getElementById('total-jobs').textContent = stats.total_jobs || 0;
+                document.getElementById('total-candidates').textContent = stats.total_candidates || 0;
+                document.getElementById('new-candidates').textContent = stats.new_candidates || 0;
+                document.getElementById('high-matches').textContent = stats.high_matches || 0;
+            } else {
+                // Fallback: try direct access (for backward compatibility)
+                document.getElementById('total-jobs').textContent = data.total_jobs || 0;
+                document.getElementById('total-candidates').textContent = data.total_candidates || 0;
+                document.getElementById('new-candidates').textContent = data.new_candidates || 0;
+                document.getElementById('high-matches').textContent = data.high_matches || 0;
+                console.warn('Dashboard data structure unexpected, using fallback:', data);
+            }
+            document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        })
+        .catch(error => {
+            console.error('Error refreshing dashboard:', error);
+        });
+}
+
+function startAutoRefresh() {
+    autoRefreshInterval = setInterval(refreshDashboard, 30000); // 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Start auto-refresh when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    startAutoRefresh();
+});
+
+// Stop auto-refresh when page is hidden (performance optimization)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        stopAutoRefresh();
+    } else {
+        startAutoRefresh();
+    }
+});
+</script>
+{% endblock %}

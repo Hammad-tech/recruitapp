@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Contacts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i data-feather="message-circle" class="me-2"></i>
+            WhatsApp Contacts
+        </h1>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" onclick="refreshContacts()">
+                <i data-feather="refresh-cw" class="me-1"></i>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-primary">{{ stats.total_contacts }}</div>
+                    <small class="text-muted">Total Contacts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-success">{{ stats.eu_contacts }}</div>
+                    <small class="text-muted">EU Contacts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-warning">{{ stats.non_eu_contacts }}</div>
+                    <small class="text-muted">Non-EU</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-info">{{ stats.clients }}</div>
+                    <small class="text-muted">Clients</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-primary">{{ stats.candidates }}</div>
+                    <small class="text-muted">Candidates</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-secondary">{{ stats.no_intent }}</div>
+                    <small class="text-muted">Unknown Intent</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Phone number, message, country code...">
+                </div>
+                <div class="col-md-2">
+                    <label for="eu_status" class="form-label">Location</label>
+                    <select class="form-select" id="eu_status" name="eu_status">
+                        <option value="all" {% if eu_filter == '' or eu_filter == 'all' %}selected{% endif %}>All Locations</option>
+                        <option value="eu" {% if eu_filter == 'eu' %}selected{% endif %}>EU</option>
+                        <option value="non-eu" {% if eu_filter == 'non-eu' %}selected{% endif %}>Non-EU</option>
+                        <option value="unknown" {% if eu_filter == 'unknown' %}selected{% endif %}>Unknown</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="intent" class="form-label">Type</label>
+                    <select class="form-select" id="intent" name="intent">
+                        <option value="all" {% if intent_filter == '' or intent_filter == 'all' %}selected{% endif %}>All Types</option>
+                        <option value="client" {% if intent_filter == 'client' %}selected{% endif %}>Clients</option>
+                        <option value="candidate" {% if intent_filter == 'candidate' %}selected{% endif %}>Candidates</option>
+                        <option value="none" {% if intent_filter == 'none' %}selected{% endif %}>Unknown Intent</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-feather="search" class="me-1"></i>
+                            Filter
+                        </button>
+                        <a href="{{ url_for('whatsapp_contacts') }}" class="btn btn-outline-secondary">
+                            <i data-feather="x" class="me-1"></i>
+                            Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contacts Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i data-feather="users" class="me-2"></i>
+                WhatsApp Contacts
+                <span class="badge bg-secondary ms-2">{{ contacts.total }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if contacts.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Phone Number</th>
+                                <th>Location</th>
+                                <th>Type</th>
+                                <th>Last Message</th>
+                                <th>Message Type</th>
+                                <th>Last Activity</th>
+                                <th>System Message</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in contacts.items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i data-feather="phone" class="me-2 text-muted" style="width: 16px; height: 16px;"></i>
+                                        <div>
+                                            <div class="fw-medium">+{{ contact.wa_id }}</div>
+                                            {% if contact.country_code %}
+                                                <small class="text-muted">{{ contact.country_code }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if contact.eu_status == 'eu' %}
+                                        <span class="badge bg-success">
+                                            <i data-feather="map-pin" style="width: 12px; height: 12px;"></i>
+                                            EU
+                                        </span>
+                                    {% elif contact.eu_status == 'non-eu' %}
+                                        <span class="badge bg-warning">
+                                            <i data-feather="globe" style="width: 12px; height: 12px;"></i>
+                                            Non-EU
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i data-feather="help-circle" style="width: 12px; height: 12px;"></i>
+                                            Unknown
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.intent == 'client' %}
+                                        <span class="badge bg-info">
+                                            <i data-feather="briefcase" style="width: 12px; height: 12px;"></i>
+                                            Client
+                                        </span>
+                                    {% elif contact.intent == 'candidate' %}
+                                        <span class="badge bg-primary">
+                                            <i data-feather="user" style="width: 12px; height: 12px;"></i>
+                                            Candidate
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">
+                                            <i data-feather="help-circle" style="width: 12px; height: 12px;"></i>
+                                            Unknown
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.last_message_text %}
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ contact.last_message_text }}">
+                                            {{ contact.last_message_text }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">No message</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.last_message_type %}
+                                        <span class="badge bg-light text-dark">
+                                            {% if contact.last_message_type == 'text' %}
+                                                <i data-feather="message-square" style="width: 12px; height: 12px;"></i>
+                                            {% elif contact.last_message_type == 'document' %}
+                                                <i data-feather="file" style="width: 12px; height: 12px;"></i>
+                                            {% elif contact.last_message_type == 'interactive' %}
+                                                <i data-feather="mouse-pointer" style="width: 12px; height: 12px;"></i>
+                                            {% else %}
+                                                <i data-feather="circle" style="width: 12px; height: 12px;"></i>
+                                            {% endif %}
+                                            {{ contact.last_message_type|title }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.last_message_at %}
+                                        <div class="time-display" data-timestamp="{{ contact.last_message_at }}">
+                                            {{ contact.last_message_at }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contact.last_system_message_at %}
+                                        <span class="badge bg-success" title="System message sent">
+                                            <i data-feather="check" style="width: 12px; height: 12px;"></i>
+                                            Sent
+                                        </span>
+                                        <div class="small text-muted time-display" data-timestamp="{{ contact.last_system_message_at }}">
+                                            {{ contact.last_system_message_at }}
+                                        </div>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i data-feather="clock" style="width: 12px; height: 12px;"></i>
+                                            Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary btn-sm" 
+                                                onclick="viewContactDetails({{ contact.id }})"
+                                                title="View Details">
+                                            <i data-feather="eye" style="width: 14px; height: 14px;"></i>
+                                        </button>
+                                        <a href="https://wa.me/{{ contact.wa_id }}" 
+                                           target="_blank" 
+                                           class="btn btn-outline-success btn-sm"
+                                           title="Message on WhatsApp">
+                                            <i data-feather="message-circle" style="width: 14px; height: 14px;"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if contacts.pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Contacts pagination">
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            {% if contacts.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('whatsapp_contacts', page=contacts.prev_num, search=search, eu_status=eu_filter, intent=intent_filter) }}">
+                                        <i data-feather="chevron-left" style="width: 14px; height: 14px;"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in contacts.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != contacts.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('whatsapp_contacts', page=page_num, search=search, eu_status=eu_filter, intent=intent_filter) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if contacts.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('whatsapp_contacts', page=contacts.next_num, search=search, eu_status=eu_filter, intent=intent_filter) }}">
+                                        <i data-feather="chevron-right" style="width: 14px; height: 14px;"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i data-feather="message-circle" style="width: 4rem; height: 4rem;" class="text-muted mb-3"></i>
+                    <h5 class="text-muted">No WhatsApp Contacts Found</h5>
+                    <p class="text-muted">
+                        {% if search or eu_filter or intent_filter %}
+                            Try adjusting your filters or search terms.
+                        {% else %}
+                            WhatsApp contacts will appear here once people start messaging your bot.
+                        {% endif %}
+                    </p>
+                    {% if search or eu_filter or intent_filter %}
+                        <a href="{{ url_for('whatsapp_contacts') }}" class="btn btn-outline-primary">
+                            <i data-feather="refresh-cw" class="me-1"></i>
+                            Clear Filters
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Contact Details Modal -->
+<div class="modal fade" id="contactDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i data-feather="user" class="me-2"></i>
+                    Contact Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="contactDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a id="whatsappLink" href="#" target="_blank" class="btn btn-success">
+                    <i data-feather="message-circle" class="me-1"></i>
+                    Message on WhatsApp
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshContacts() {
+    window.location.reload();
+}
+
+function viewContactDetails(contactId) {
+    const modal = new bootstrap.Modal(document.getElementById('contactDetailsModal'));
+    const content = document.getElementById('contactDetailsContent');
+    const whatsappLink = document.getElementById('whatsappLink');
+    
+    // Show loading
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch contact details
+    fetch(`/api/whatsapp/contacts`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const contact = data.contacts.find(c => c.id === contactId);
+                if (contact) {
+                    // Update WhatsApp link
+                    whatsappLink.href = `https://wa.me/${contact.wa_id}`;
+                    
+                    // Build contact details HTML
+                    content.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3">Contact Information</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Phone Number:</label>
+                                    <div>+${contact.wa_id}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Location Status:</label>
+                                    <div>
+                                        ${contact.eu_status === 'eu' ? '<span class="badge bg-success">EU</span>' :
+                                          contact.eu_status === 'non-eu' ? '<span class="badge bg-warning">Non-EU</span>' :
+                                          '<span class="badge bg-secondary">Unknown</span>'}
+                                        ${contact.country_code ? `<small class="text-muted ms-2">Code: ${contact.country_code}</small>` : ''}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Intent:</label>
+                                    <div>
+                                        ${contact.intent === 'client' ? '<span class="badge bg-info">Client</span>' :
+                                          contact.intent === 'candidate' ? '<span class="badge bg-primary">Candidate</span>' :
+                                          '<span class="badge bg-light text-dark">Unknown</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3">Message History</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Last Message:</label>
+                                    <div class="p-2 bg-light rounded">
+                                        ${contact.last_message_text || '<em class="text-muted">No message</em>'}
+                                    </div>
+                                    ${contact.last_message_type ? `<small class="text-muted">Type: ${contact.last_message_type}</small>` : ''}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Last Activity:</label>
+                                    <div>${contact.last_message_at ? formatTimestampModal(contact.last_message_at) : 'Never'}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">System Message:</label>
+                                    <div>
+                                        ${contact.last_system_message_at ? 
+                                          `<span class="badge bg-success">Sent</span> <small class="text-muted">${formatTimestampModal(contact.last_system_message_at)}</small>` :
+                                          '<span class="badge bg-warning">Not sent</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="fw-bold mb-3">Timestamps</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">First Contact:</small>
+                                        <div>${formatTimestampModal(contact.created_at)}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Last Updated:</small>
+                                        <div>${formatTimestampModal(contact.updated_at)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                content.innerHTML = `<div class="alert alert-danger">Error loading contact details: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            content.innerHTML = `<div class="alert alert-danger">Error loading contact details: ${error.message}</div>`;
+        });
+}
+
+// Format timestamps using JavaScript
+function formatTimestamp(timestamp, includeRelative = true) {
+    if (!timestamp) return 'Never';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    const fullDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    if (!includeRelative) {
+        return fullDate;
+    }
+    
+    let relativeTime;
+    if (diffMins < 1) {
+        relativeTime = 'Just now';
+    } else if (diffMins < 60) {
+        relativeTime = `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+        relativeTime = `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+        relativeTime = `${diffDays}d ago`;
+    } else {
+        relativeTime = date.toLocaleDateString();
+    }
+    
+    return `
+        <div>${relativeTime}</div>
+        <small class="text-muted">${fullDate}</small>
+    `;
+}
+
+// Format timestamp for modal (single line)
+function formatTimestampModal(timestamp) {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Format all timestamps
+    document.querySelectorAll('.time-display').forEach(element => {
+        const timestamp = element.getAttribute('data-timestamp');
+        if (timestamp) {
+            element.innerHTML = formatTimestamp(timestamp);
+        }
+    });
+    
+    // Initialize Feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+</script>
+{% endblock %}

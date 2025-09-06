@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Candidates - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i data-feather="users"></i>
+            Candidates
+        </h1>
+        <div class="text-muted">
+            <small><i data-feather="info"></i> Candidates are automatically added via N8N automation</small>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-primary">{{ stats.total_candidates }}</div>
+                    <small class="text-muted">Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-warning">{{ stats.new_candidates }}</div>
+                    <small class="text-muted">New</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-info">{{ stats.reviewed_candidates }}</div>
+                    <small class="text-muted">Reviewed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-success">{{ stats.shortlisted_candidates }}</div>
+                    <small class="text-muted">Shortlisted</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-primary">{{ stats.email_candidates }}</div>
+                    <small class="text-muted">Email</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-success">{{ stats.whatsapp_candidates }}</div>
+                    <small class="text-muted">WhatsApp</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Enhanced Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" id="search"
+                           placeholder="Name, email, location, skills..." value="{{ search }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" class="form-select" id="status">
+                        <option value="all" {% if status_filter == '' or status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        {% for status in statuses %}
+                        <option value="{{ status.value }}" 
+                                {% if status_filter == status.value %}selected{% endif %}>
+                            {{ status.value|title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="source" class="form-label">Source</label>
+                    <select name="source" class="form-select" id="source">
+                        <option value="all" {% if source_filter == '' or source_filter == 'all' %}selected{% endif %}>All Sources</option>
+                        <option value="email" {% if source_filter == 'email' %}selected{% endif %}>Email</option>
+                        <option value="whatsapp" {% if source_filter == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
+                        <option value="manual" {% if source_filter == 'manual' %}selected{% endif %}>Manual</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="experience_min" class="form-label">Min Experience</label>
+                    <input type="number" name="experience_min" class="form-control" id="experience_min"
+                           placeholder="Years" value="{{ experience_min }}" min="0" max="50">
+                </div>
+                <div class="col-md-2">
+                    <label for="experience_max" class="form-label">Max Experience</label>
+                    <input type="number" name="experience_max" class="form-control" id="experience_max"
+                           placeholder="Years" value="{{ experience_max }}" min="0" max="50">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex flex-column gap-1">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i data-feather="search" class="me-1"></i>
+                            Filter
+                        </button>
+                        <a href="{{ url_for('candidates') }}" class="btn btn-outline-secondary btn-sm">
+                            <i data-feather="x" class="me-1"></i>
+                            Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <span class="badge bg-primary fs-6">{{ candidates.total }} candidates found</span>
+        </div>
+    </div>
+
+    {% if candidates %}
+    <!-- Candidates Table -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Candidate</th>
+                        <th>Contact</th>
+                        <th>Skills</th>
+                        <th>Experience</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Reference</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for candidate in candidates %}
+                    <tr>
+                        <td>
+                            <div>
+                                <strong>{{ candidate.name }}</strong>
+                                {% if candidate.location %}
+                                <br><small class="text-muted">
+                                    <i data-feather="map-pin" class="small-icon"></i> {{ candidate.location }}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <small>{{ candidate.email }}</small>
+                                {% if candidate.phone %}
+                                <br><small class="text-muted">{{ candidate.phone }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                {% if candidate.skills %}
+                                    {% for skill in candidate.skills[:4] %}
+                                        <span class="badge bg-primary me-1 mb-1">{{ skill }}</span>
+                                    {% endfor %}
+                                    {% if candidate.skills|length > 4 %}
+                                        <span class="badge bg-light text-dark">+{{ candidate.skills|length - 4 }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <small class="text-muted">No skills listed</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if candidate.experience_years %}
+                                {{ candidate.experience_years }} years
+                            {% else %}
+                                <small class="text-muted">Not specified</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if candidate.status.value == 'new' %}bg-primary
+                                {% elif candidate.status.value == 'reviewing' %}bg-warning
+                                {% elif candidate.status.value == 'shortlisted' %}bg-info
+                                {% elif candidate.status.value == 'interviewing' %}bg-success
+                                {% elif candidate.status.value == 'hired' %}bg-success
+                                {% elif candidate.status.value == 'rejected' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ candidate.status.value|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">
+                                {{ candidate.source|title if candidate.source else 'Unknown' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if candidate.source_reference %}
+                                <small class="text-muted" title="{{ candidate.source_reference }}">
+                                    {{ candidate.source_reference[:30] + '...' if candidate.source_reference|length > 30 else candidate.source_reference }}
+                                </small>
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                                   class="btn btn-outline-primary" title="View Details">
+                                    <i data-feather="eye"></i>
+                                </a>
+                                {% if candidate.cv_drive_link %}
+                                <a href="{{ candidate.cv_drive_link }}" target="_blank" 
+                                   class="btn btn-outline-success" title="View CV on Google Drive">
+                                    <i data-feather="external-link"></i>
+                                </a>
+                                {% elif candidate.cv_filename and candidate.cv_filename.startswith('http') %}
+                                <a href="{{ candidate.cv_filename }}" target="_blank" 
+                                   class="btn btn-outline-info" title="View CV">
+                                    <i data-feather="file-text"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Candidates Found -->
+    <div class="text-center py-5">
+        <i data-feather="users" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+        <h5 class="text-muted">No candidates found</h5>
+        <p class="text-muted">
+            {% if search_query or status_filter %}
+                Try adjusting your search criteria or filters.
+            {% else %}
+                Candidates will appear here once CVs are processed through N8N automation.
+            {% endif %}
+        </p>
+        {% if search_query or status_filter %}
+        <a href="{{ url_for('candidates') }}" class="btn btn-outline-primary">
+            Clear Filters
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

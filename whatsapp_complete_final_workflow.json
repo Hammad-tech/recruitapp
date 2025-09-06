@@ -1,0 +1,1328 @@
+{
+  "name": "WhatsApp CV Processing - Complete Final",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["messages"],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [-480, 2544],
+      "id": "whatsapp_trigger",
+      "name": "WhatsApp Trigger",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "sT4uapiVwJK17jq8",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse WhatsApp incoming message\nconst entry = $input.first().json?.entry?.[0];\nconst change = entry?.changes?.[0];\nconst value = change?.value;\nconst message = value?.messages?.[0];\n\nif (!message) return [];\n\nconst waId = message.from;\nconst type = message.type;\nconst text = message.text?.body || \n  message.interactive?.button_reply?.id || \n  message.interactive?.list_reply?.id || \n  \"\";\n\nconst phone_number_id = value?.metadata?.phone_number_id;\nconst document = message.document || null;\nconst audio = message.audio || null;\nconst image = message.image || null;\nconst video = message.video || null;\n\nreturn [{\n  json: {\n    waId,\n    type,\n    text,\n    phone_number_id,\n    document,\n    audio,\n    image,\n    video,\n    message,\n    originalPayload: $input.first().json\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-288, 2544],
+      "id": "parse_whatsapp",
+      "name": "Parse WhatsApp"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Detect EU Status using country codes\nconst EU_CODES = new Set([\n  \"43\",\"32\",\"359\",\"385\",\"357\",\"420\",\"45\",\"372\",\"358\",\"33\",\"49\",\"30\",\"36\",\"353\",\n  \"39\",\"371\",\"370\",\"352\",\"356\",\"31\",\"48\",\"351\",\"40\",\"421\",\"386\",\"34\",\"46\",\"354\",\"423\",\"47\"\n]);\n\nconst { waId } = $json;\n\nfunction detectCode(num) {\n  for (let len = 3; len >= 1; len--) {\n    const code = (num || '').slice(0, len);\n    if (EU_CODES.has(code)) return code;\n  }\n  return null;\n}\n\nconst country_code = detectCode(waId || \"\");\nconst eu_status = country_code ? \"eu\" : \"non-eu\";\n\nreturn [{\n  json: {\n    ...$json,\n    country_code,\n    eu_status,\n    needs_location_detection: !country_code\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-80, 2544],
+      "id": "detect_eu_status",
+      "name": "Detect EU Status"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fun-keen-jay.ngrok-free.app/api/whatsapp/contacts/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  wa_id: $json.waId,\n  eu_status: $json.eu_status,\n  country_code: $json.country_code,\n  last_message_text: $json.text,\n  last_message_type: $json.type,\n  last_message_at: new Date().toISOString()\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [128, 2464],
+      "id": "backend_upsert",
+      "name": "Backend: Upsert Contact"
+    },
+    {
+      "parameters": {
+        "url": "https://fun-keen-jay.ngrok-free.app/api/whatsapp/contacts/{{ $json.waId }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [128, 2672],
+      "id": "backend_get_state",
+      "name": "Backend: Get Contact State"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge parsed message with backend contact state\nconst messageData = $('Detect EU Status').first().json || {};\nconst contactState = $json;\nconst contact = contactState && (contactState.success || contactState.wa_id) ? contactState : {};\n\nreturn [{\n  json: {\n    // message data\n    waId: messageData.waId,\n    type: messageData.type,\n    text: messageData.text,\n    phone_number_id: messageData.phone_number_id,\n    document: messageData.document,\n    audio: messageData.audio,\n    image: messageData.image,\n    video: messageData.video,\n    message: messageData.message,\n\n    // geo\n    eu_status: contact.eu_status || messageData.eu_status || \"unknown\",\n    country_code: contact.country_code || messageData.country_code || null,\n\n    // memory\n    intent: contact.intent || null,\n    last_system_message_at: contact.last_system_message_at || null,\n\n    // time\n    last_message_at: contact.last_message_at || new Date().toISOString(),\n    created_at: contact.created_at || new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 2576],
+      "id": "merge_state",
+      "name": "Merge State"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "audio",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "image",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "video",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2400],
+      "id": "if_unsupported",
+      "name": "IF: Unsupported Type?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  messaging_product: \"whatsapp\",\n  to: $json.waId,\n  type: \"text\",\n  text: { body: \"Thanks for your message! Currently, we only process text messages and PDF/DOC files. Please send your CV as a document or type your message.\" }\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [736, 2320],
+      "id": "wa_unsupported",
+      "name": "WA: Unsupported Type Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.last_system_message_at }}",
+              "rightValue": "={{ new Date(Date.now() - 24*60*60*1000).toISOString() }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "before"
+              }
+            },
+            {
+              "leftValue": "={{ $json.last_system_message_at }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2480],
+      "id": "if_need_system",
+      "name": "IF: Need System Message?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  messaging_product: \"whatsapp\",\n  to: $json.waId,\n  type: \"text\",\n  text: { body: \"Thanks for reaching out! A team member will get back to you shortly.\" }\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [736, 2400],
+      "id": "wa_system",
+      "name": "WA: Send System Message"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://fun-keen-jay.ngrok-free.app/api/whatsapp/contacts/{{ $json.waId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { last_system_message_at: new Date().toISOString() } }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 2400],
+      "id": "backend_mark_system",
+      "name": "Backend: Mark System Sent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message?.interactive?.button_reply?.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2560],
+      "id": "if_button",
+      "name": "IF: Button Reply?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message?.interactive?.button_reply?.id }}",
+              "rightValue": "is_client",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [736, 2520],
+      "id": "if_client",
+      "name": "IF: Client Button?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message?.interactive?.button_reply?.id }}",
+              "rightValue": "is_candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [736, 2600],
+      "id": "if_candidate",
+      "name": "IF: Candidate Button?"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://fun-keen-jay.ngrok-free.app/api/whatsapp/contacts/{{ $json.waId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"intent\":\"client\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 2520],
+      "id": "backend_set_client",
+      "name": "Backend: Set Client Intent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  messaging_product: \"whatsapp\",\n  to: $json.waId,\n  type: \"text\",\n  text: { body: `Thanks! Please post your job here: https://fun-keen-jay.ngrok-free.app/create_job\\n\\nOur team will follow up shortly.` }\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1136, 2520],
+      "id": "wa_job_link",
+      "name": "WA: Send Job Link"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://fun-keen-jay.ngrok-free.app/api/whatsapp/contacts/{{ $json.waId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"intent\":\"candidate\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 2600],
+      "id": "backend_set_candidate",
+      "name": "Backend: Set Candidate Intent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  messaging_product: \"whatsapp\",\n  to: $json.waId,\n  type: \"text\",\n  text: { body: \"Great! Please send your CV as a PDF or DOC file.\\n\\nAlso include your location and years of experience.\" }\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1136, 2600],
+      "id": "wa_ask_cv",
+      "name": "WA: Ask for CV"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2640],
+      "id": "if_no_intent",
+      "name": "IF: No Intent?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  messaging_product: \"whatsapp\",\n  to: $json.waId,\n  type: \"interactive\",\n  interactive: {\n    type: \"button\",\n    body: { text: \"Are you a client looking to hire, or a candidate looking for work?\" },\n    action: {\n      buttons: [\n        { type: \"reply\", reply: { id: \"is_client\", title: \"I'm a Client\" } },\n        { type: \"reply\", reply: { id: \"is_candidate\", title: \"I'm a Candidate\" } }\n      ]\n    }\n  }\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [736, 2640],
+      "id": "wa_ask_intent",
+      "name": "WA: Ask Client or Candidate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "document",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.eu_status }}",
+              "rightValue": "eu",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2720],
+      "id": "if_eu_cv",
+      "name": "IF: Candidate + EU + CV?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "document",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.eu_status }}",
+              "rightValue": "non-eu",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2800],
+      "id": "if_non_eu_cv",
+      "name": "IF: Candidate + Non-EU + CV?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict",
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [528, 2880],
+      "id": "if_candidate_text",
+      "name": "IF: Candidate + Text?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  messaging_product: \"whatsapp\",\n  to: $json.waId,\n  type: \"text\",\n  text: { body: \"Thanks for your message! To proceed with your application, please send your CV as a PDF or DOC file.\\n\\n📄 **What to include:**\\n• Your complete CV/Resume\\n• Your current location\\n• Years of experience\\n\\nOnce we receive your CV, we'll match you with suitable opportunities!\" }\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [736, 2880],
+      "id": "wa_ask_cv_again",
+      "name": "WA: Ask for CV Again"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v20.0/{{ $json.document.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [736, 2720],
+      "id": "get_media_eu",
+      "name": "WA: Get Media URL (EU)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 2720],
+      "id": "download_cv_eu",
+      "name": "WA: Download CV (EU)"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "name": "={{ $('Parse WhatsApp').item.json.document?.filename || ('CV-EU-'+$('Parse WhatsApp').item.json.waId+'-'+Date.now()+'.pdf') }}",
+        "parents": ["1CYBsxY3dvIjzU9WuQ6qZsyOM4iOhL6Tk"]
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [1136, 2680],
+      "id": "drive_upload_eu",
+      "name": "Google Drive: Upload CV (EU)",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "t86iqpirigU6VUdh",
+          "name": "Google Drive account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "binaryPropertyName": "data",
+        "options": {
+          "purpose": "assistants"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1136, 2760],
+      "id": "openai_upload_eu",
+      "name": "OpenAI: Upload CV (EU)",
+      "credentials": {
+        "openAiApi": {
+          "id": "0p398uXnLpT5xiPy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fun-keen-jay.ngrok-free.app/api/jobs"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1344, 2720],
+      "id": "get_jobs_eu",
+      "name": "Backend: Get Jobs (EU)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  model: \"gpt-4o-mini\",\n  messages: [\n    {\n      role: \"user\",\n      content: \"Analyze the attached CV and extract the candidate's name, email, phone number, location, skills (list), years of experience, education (list with degree, field, institution, graduation_year, gpa), work_experience (list with title, company, location, start_date, end_date, current, description, technologies), and a summary. Then match the candidate against each job description provided and compute a suitability score between 0-100 with matching_skills, missing_skills, and a reason. Respond with JSON structured as {\\\"candidate\\\": {name, email, phone, location, skills, experience_years, education, work_experience, summary}, \\\"job_scores\\\": [ {job_id, score, matching_skills, missing_skills, reasons}, ... ]}.\\n\\nJobs: \" + JSON.stringify($('Backend: Get Jobs (EU)').item.json.jobs) + \"\\n\\nCV File ID: \" + $('OpenAI: Upload CV (EU)').item.json.id\n    }\n  ]\n} }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1536, 2720],
+      "id": "analyze_cv_eu",
+      "name": "OpenAI: CV & Jobs Analysis (EU)",
+      "credentials": {
+        "openAiApi": {
+          "id": "0p398uXnLpT5xiPy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const respNode = $('OpenAI: CV & Jobs Analysis (EU)').first();\nconst driveNode = $('Google Drive: Upload CV (EU)').first();\nconst parseNode = $('Parse WhatsApp').first();\n\n// 1) get model text\nconst oa = respNode.json;\nlet text = null;\nif (oa?.choices?.[0]?.message?.content) {\n  text = oa.choices[0].message.content;\n} else if (oa?.content) {\n  text = oa.content;\n}\nif (!text) throw new Error(\"OpenAI content missing.\");\n\n// 2) parse JSON\nconst clean = String(text).replace(/^```json\\s*/i, \"\").replace(/```\\s*$/i, \"\").trim();\nlet parsed;\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  throw new Error('Failed to parse model JSON: ' + e.message + \"\\nRaw: \" + clean.slice(0, 2000));\n}\n\nconst candidate = parsed?.candidate || {};\nconst jobScores = Array.isArray(parsed?.job_scores) ? parsed.job_scores : [];\n\n// 3) drive link\nconst d = driveNode.json;\nconst driveFileId = d?.id || null;\nconst driveFileName = d?.name || d?.fileName || null;\nconst driveLink = driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing` : null;\n\n// 4) wa context\nconst wa = parseNode.json;\nconst waId = wa?.waId || null;\nconst sourceRef = wa?.text || \"WhatsApp CV Upload\";\n\nreturn [{\n  json: {\n    name: candidate?.name ?? null,\n    email: candidate?.email ?? null,\n    phone: candidate?.phone ?? waId,\n    location: candidate?.location ?? null,\n    cv_filename: driveFileName,\n    cv_drive_link: driveLink,\n    cv_text: candidate?.summary ?? \"\",\n    skills: Array.isArray(candidate?.skills) ? candidate.skills : [],\n    experience_years: Number.isFinite(candidate?.experience_years) ? candidate.experience_years : (candidate?.experience_years ?? null),\n    education: Array.isArray(candidate?.education) ? candidate.education : [],\n    work_experience: Array.isArray(candidate?.work_experience) ? candidate.work_experience : [],\n    summary: candidate?.summary ?? \"\",\n    source: \"whatsapp\",\n    source_reference: sourceRef,\n    job_scores: jobScores\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1744, 2720],
+      "id": "prepare_candidate_eu",
+      "name": "Prepare Candidate (EU)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fun-keen-jay.ngrok-free.app/api/candidate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1936, 2720],
+      "id": "create_candidate_eu",
+      "name": "Backend: Create Candidate (EU)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $('Parse WhatsApp').item.json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const c = $json || {};\n  const jobScores = Array.isArray(c.job_scores) ? c.job_scores : [];\n  const top = jobScores.filter(m => typeof m.score === 'number' && m.score > 0).sort((a,b)=>b.score-a.score).slice(0,3);\n  let body = '✅ CV Received & Processed!\\n\\nThanks ' + (c.name || 'there') + '! We have successfully analyzed your CV.';\n  if (top.length > 0){\n    body += '\\n\\n🎯 Your Top Job Matches:';\n    top.forEach((m,i)=>{\n      const skills = (m.matching_skills || []).slice(0,2).join(', ');\n      body += `\\n${i+1}. Job ${m.job_id} - ${m.score}% match` + (skills ? `\\n   📋 Key matches: ${skills}` : '');\n    });\n    if (top[0].score >= 80) body += '\\n\\n🔥 Excellent match found! Priority processing.';\n    else if (top[0].score >= 60) body += '\\n\\n✨ Good matches found! We will be in touch soon.';\n  } else {\n    body += '\\n\\n📝 We are reviewing your profile for suitable opportunities.';\n  }\n  body += '\\n\\n📞 Next Steps:';\n  body += '\\n• Our recruitment team will call you within 24 hours';\n  body += '\\n• We will discuss the best opportunities for you';\n  body += '\\n• Check more jobs: https://fun-keen-jay.ngrok-free.app';\n  body += '\\n\\nThank you for choosing our recruitment services! 🚀';\n  return {\n    messaging_product: 'whatsapp',\n    to: $('Parse WhatsApp').item.json.waId,\n    type: 'text',\n    text: { body }\n  };\n})() }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2144, 2720],
+      "id": "send_summary_eu",
+      "name": "WA: Send CV Summary (EU)"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v20.0/{{ $json.document.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [736, 2800],
+      "id": "get_media_non_eu",
+      "name": "WA: Get Media URL (Non-EU)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 2800],
+      "id": "download_cv_non_eu",
+      "name": "WA: Download CV (Non-EU)"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "name": "={{ $('Parse WhatsApp').item.json.document?.filename || ('CV-NonEU-'+$('Parse WhatsApp').item.json.waId+'-'+Date.now()+'.pdf') }}",
+        "parents": ["1CYBsxY3dvIjzU9WuQ6qZsyOM4iOhL6Tk"]
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [1136, 2800],
+      "id": "drive_upload_non_eu",
+      "name": "Google Drive: Upload CV (Non-EU)",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "t86iqpirigU6VUdh",
+          "name": "Google Drive account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Non-EU candidate for backend storage\nconst driveNode = $('Google Drive: Upload CV (Non-EU)').first();\nconst parseNode = $('Parse WhatsApp').first();\n\n// Get Google Drive info\nconst drive = driveNode.json;\nconst driveFileId = drive?.id || null;\nconst driveFileName = drive?.name || drive?.fileName || null;\nconst driveLink = driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing` : null;\n\n// Get WhatsApp info\nconst waMsg = parseNode.json;\nconst waId = waMsg?.waId || null;\nconst sourceRef = waMsg?.text || \"WhatsApp CV Upload (Non-EU)\";\n\n// Build payload for /api/candidate (Non-EU, no job matching)\nconst output = {\n  name: null, // Will be filled manually or via future processing\n  email: null,\n  phone: waId, // Use WhatsApp ID as phone\n  location: null,\n\n  cv_filename: driveFileName,\n  cv_drive_link: driveLink,\n  cv_text: \"\", // No OpenAI processing for non-EU\n\n  skills: [],\n  experience_years: null,\n  education: [],\n  work_experience: [],\n  summary: \"Non-EU candidate - CV stored for future review\",\n\n  source: \"whatsapp\",\n  source_reference: sourceRef,\n\n  job_scores: [] // No job matching for non-EU\n};\n\nreturn [{ json: output }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1344, 2800],
+      "id": "prepare_non_eu",
+      "name": "Prepare Non-EU Candidate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fun-keen-jay.ngrok-free.app/api/candidate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1536, 2800],
+      "id": "create_non_eu",
+      "name": "Backend: Create Non-EU Candidate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v20.0/{{ $('Parse WhatsApp').item.json.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_META_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  let message = '✅ **CV Received & Stored!**\\n\\nThanks for your interest in our opportunities!';\n  message += '\\n\\n📋 We\\'ve received and stored your CV for future reference.';\n  message += '\\n\\n🌍 **International Opportunities**';\n  message += '\\n• We\\'ll review your profile for suitable positions';\n  message += '\\n• Our team will reach out if relevant opportunities arise';\n  message += '\\n• We appreciate your interest in working with us';\n  \n  message += '\\n\\n📞 **Next Steps:**';\n  message += '\\n• Your CV is now in our candidate database';\n  message += '\\n• We\\'ll contact you if matching opportunities become available';\n  message += '\\n• Check our latest updates: https://fun-keen-jay.ngrok-free.app';\n  \n  message += '\\n\\n_Thank you for considering our recruitment services!_ 🌟';\n  \n  return {\n    messaging_product: 'whatsapp',\n    to: $('Parse WhatsApp').item.json.waId,\n    type: 'text',\n    text: { body: message }\n  };\n})() }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1744, 2800],
+      "id": "send_non_eu_response",
+      "name": "WA: Send Non-EU Response"
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Detect EU Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect EU Status": {
+      "main": [
+        [
+          {
+            "node": "Backend: Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend: Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "Backend: Get Contact State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend: Get Contact State": {
+      "main": [
+        [
+          {
+            "node": "Merge State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge State": {
+      "main": [
+        [
+          {
+            "node": "IF: Unsupported Type?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Unsupported Type?": {
+      "main": [
+        [
+          {
+            "node": "WA: Unsupported Type Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: Need System Message?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Button Reply?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: No Intent?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Candidate + EU + CV?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Candidate + Non-EU + CV?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Candidate + Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Need System Message?": {
+      "main": [
+        [
+          {
+            "node": "WA: Send System Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "WA: Send System Message": {
+      "main": [
+        [
+          {
+            "node": "Backend: Mark System Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Button Reply?": {
+      "main": [
+        [
+          {
+            "node": "IF: Client Button?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Candidate Button?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "IF: Client Button?": {
+      "main": [
+        [
+          {
+            "node": "Backend: Set Client Intent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Backend: Set Client Intent": {
+      "main": [
+        [
+          {
+            "node": "WA: Send Job Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Candidate Button?": {
+      "main": [
+        [
+          {
+            "node": "Backend: Set Candidate Intent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Backend: Set Candidate Intent": {
+      "main": [
+        [
+          {
+            "node": "WA: Ask for CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: No Intent?": {
+      "main": [
+        [
+          {
+            "node": "WA: Ask Client or Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "IF: Candidate + EU + CV?": {
+      "main": [
+        [
+          {
+            "node": "WA: Get Media URL (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "IF: Candidate + Non-EU + CV?": {
+      "main": [
+        [
+          {
+            "node": "WA: Get Media URL (Non-EU)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "IF: Candidate + Text?": {
+      "main": [
+        [
+          {
+            "node": "WA: Ask for CV Again",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "WA: Get Media URL (EU)": {
+      "main": [
+        [
+          {
+            "node": "WA: Download CV (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WA: Download CV (EU)": {
+      "main": [
+        [
+          {
+            "node": "Google Drive: Upload CV (EU)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenAI: Upload CV (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Upload CV (EU)": {
+      "main": [
+        [
+          {
+            "node": "Backend: Get Jobs (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Upload CV (EU)": {
+      "main": [
+        [
+          {
+            "node": "Backend: Get Jobs (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend: Get Jobs (EU)": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: CV & Jobs Analysis (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: CV & Jobs Analysis (EU)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Candidate (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Candidate (EU)": {
+      "main": [
+        [
+          {
+            "node": "Backend: Create Candidate (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend: Create Candidate (EU)": {
+      "main": [
+        [
+          {
+            "node": "WA: Send CV Summary (EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WA: Get Media URL (Non-EU)": {
+      "main": [
+        [
+          {
+            "node": "WA: Download CV (Non-EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WA: Download CV (Non-EU)": {
+      "main": [
+        [
+          {
+            "node": "Google Drive: Upload CV (Non-EU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Upload CV (Non-EU)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Non-EU Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Non-EU Candidate": {
+      "main": [
+        [
+          {
+            "node": "Backend: Create Non-EU Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend: Create Non-EU Candidate": {
+      "main": [
+        [
+          {
+            "node": "WA: Send Non-EU Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aa79cc9659c5b6c68a4b9e7367fbe3f1ff1acao70087ed71d4c0d6b2a83f5254c"
+  }
+}

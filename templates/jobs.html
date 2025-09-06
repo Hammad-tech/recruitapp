@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i data-feather="briefcase"></i>
+            Jobs Management
+        </h1>
+        {% if not create_mode %}
+        <a href="{{ url_for('create_job') }}" class="btn btn-primary">
+            <i data-feather="plus-circle" class="me-1"></i>
+            Post New Job
+        </a>
+        {% endif %}
+    </div>
+
+    {% if create_mode %}
+    <!-- Job Creation Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="plus-circle"></i>
+                        Post New Job
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Job Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required 
+                                   placeholder="e.g. Senior Python Developer">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="location" class="form-label">Location</label>
+                                <input type="text" class="form-control" id="location" name="location" 
+                                       placeholder="e.g. London, UK / Remote">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="experience_level" class="form-label">Experience Level</label>
+                                <select class="form-select" id="experience_level" name="experience_level">
+                                    <option value="">Select Level</option>
+                                    <option value="entry">Entry Level</option>
+                                    <option value="mid">Mid Level</option>
+                                    <option value="senior">Senior Level</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="job_type" class="form-label">Job Type</label>
+                                <select class="form-select" id="job_type" name="job_type">
+                                    <option value="">Select Type</option>
+                                    <option value="full-time">Full Time</option>
+                                    <option value="part-time">Part Time</option>
+                                    <option value="contract">Contract</option>
+                                    <option value="freelance">Freelance</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="salary_min" class="form-label">Minimum Salary</label>
+                                <input type="number" class="form-control" id="salary_min" name="salary_min" 
+                                       placeholder="50000">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="salary_max" class="form-label">Maximum Salary</label>
+                                <input type="number" class="form-control" id="salary_max" name="salary_max" 
+                                       placeholder="80000">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Job Description *</label>
+                            <textarea class="form-control" id="description" name="description" rows="6" required 
+                                      placeholder="Describe the role, responsibilities, and what the candidate will be doing..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="requirements" class="form-label">Requirements & Skills *</label>
+                            <textarea class="form-control" id="requirements" name="requirements" rows="6" required 
+                                      placeholder="List the required skills, experience, education, and qualifications..."></textarea>
+                            <div class="form-text">
+                                Our AI will automatically extract skills from this text for candidate matching.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i data-feather="save" class="me-1"></i>
+                                Post Job
+                            </button>
+                            <a href="{{ url_for('jobs') }}" class="btn btn-secondary">
+                                <i data-feather="x" class="me-1"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Statistics Cards -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-primary">{{ stats.total_jobs }}</div>
+                    <small class="text-muted">Total Jobs</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-success">{{ stats.active_jobs }}</div>
+                    <small class="text-muted">Active</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-warning">{{ stats.paused_jobs }}</div>
+                    <small class="text-muted">Paused</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body py-3">
+                    <div class="h4 mb-1 text-secondary">{{ stats.closed_jobs }}</div>
+                    <small class="text-muted">Closed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Job title, description, location...">
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="all" {% if status_filter == '' or status_filter == 'all' %}selected{% endif %}>All Status</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
+                        <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="experience_level" class="form-label">Experience</label>
+                    <select class="form-select" id="experience_level" name="experience_level">
+                        <option value="all" {% if experience_level == '' or experience_level == 'all' %}selected{% endif %}>All Levels</option>
+                        <option value="entry" {% if experience_level == 'entry' %}selected{% endif %}>Entry Level</option>
+                        <option value="mid" {% if experience_level == 'mid' %}selected{% endif %}>Mid Level</option>
+                        <option value="senior" {% if experience_level == 'senior' %}selected{% endif %}>Senior Level</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="job_type" class="form-label">Type</label>
+                    <select class="form-select" id="job_type" name="job_type">
+                        <option value="all" {% if job_type == '' or job_type == 'all' %}selected{% endif %}>All Types</option>
+                        <option value="full-time" {% if job_type == 'full-time' %}selected{% endif %}>Full-time</option>
+                        <option value="part-time" {% if job_type == 'part-time' %}selected{% endif %}>Part-time</option>
+                        <option value="contract" {% if job_type == 'contract' %}selected{% endif %}>Contract</option>
+                        <option value="remote" {% if job_type == 'remote' %}selected{% endif %}>Remote</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-feather="search" class="me-1"></i>
+                            Filter
+                        </button>
+                        <a href="{{ url_for('jobs') }}" class="btn btn-outline-secondary">
+                            <i data-feather="x" class="me-1"></i>
+                            Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Jobs List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i data-feather="briefcase" class="me-2"></i>
+                Job Listings
+                <span class="badge bg-secondary ms-2">{{ jobs.total }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if jobs.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Job Title</th>
+                                <th>Location</th>
+                                <th>Experience</th>
+                                <th>Salary Range</th>
+                                <th>Status</th>
+                                <th>Posted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in jobs.items %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ job.title }}</div>
+                                    <small class="text-muted">{{ job.job_type|title if job.job_type else 'Not specified' }}</small>
+                                </td>
+                                <td>{{ job.location or 'Not specified' }}</td>
+                                <td>
+                                    {% if job.experience_level %}
+                                        <span class="badge bg-{{ 'success' if job.experience_level == 'senior' else 'info' if job.experience_level == 'mid' else 'warning' }}">
+                                            {{ job.experience_level|title }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if job.salary_min and job.salary_max %}
+                                        ${{ "{:,}".format(job.salary_min) }} - ${{ "{:,}".format(job.salary_max) }}
+                                    {% elif job.salary_min %}
+                                        From ${{ "{:,}".format(job.salary_min) }}
+                                    {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if job.status.value == 'active' else 'warning' if job.status.value == 'paused' else 'secondary' }}">
+                                        {{ job.status.value|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">Recently posted</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <!-- Job view button with dynamic ID from Jinja2 template -->
+                                        <button type="button" class="btn btn-outline-primary" onclick="viewJobDetails({{ job.id }})" title="View Job Details" aria-label="View details for {{ job.title }}">
+                                            <i data-feather="eye"></i>
+                                        </button>
+                                        <a href="{{ url_for('toggle_job_status', job_id=job.id) }}" 
+                                           class="btn btn-outline-{{ 'warning' if job.status.value == 'active' else 'success' }}"
+                                           title="{{ 'Pause' if job.status.value == 'active' else 'Activate' }} Job">
+                                            <i data-feather="{{ 'pause' if job.status.value == 'active' else 'play' }}"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="confirmDeleteJob({{ job.id }}, '{{ job.title|replace("'", "\\'") }}')"
+                                                title="Delete Job Permanently">
+                                            <i data-feather="trash-2"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if jobs.pages > 1 %}
+                <nav aria-label="Jobs pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if jobs.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('jobs', page=jobs.prev_num) }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in jobs.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != jobs.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('jobs', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if jobs.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('jobs', page=jobs.next_num) }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i data-feather="briefcase" style="width: 4rem; height: 4rem;" class="text-muted"></i>
+                    <h4 class="text-muted mt-3">No jobs posted yet</h4>
+                    <p class="text-muted">Start by posting your first job to begin collecting candidates.</p>
+                    <a href="{{ url_for('create_job') }}" class="btn btn-primary">
+                        <i data-feather="plus-circle" class="me-1"></i>
+                        Post Your First Job
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Job Details Modal -->
+<div class="modal fade" id="jobDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Job Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="jobDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewJobDetails(jobId) {
+    // Show loading spinner
+    document.getElementById('jobDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading job details...</p>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('jobDetailsModal'));
+    modal.show();
+    
+    // Fetch job details from API
+    fetch(`/api/jobs/${jobId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch job details');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayJobDetails(data.job);
+            } else {
+                throw new Error(data.error || 'Failed to load job details');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching job details:', error);
+            document.getElementById('jobDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i data-feather="alert-triangle" class="me-2"></i>
+                    <strong>Error loading job details:</strong><br>
+                    ${error.message}
+                </div>
+            `;
+            // Reinitialize feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        });
+}
+
+function displayJobDetails(job) {
+    const content = `
+        <div class="row">
+            <div class="col-md-8">
+                <h4 class="text-primary mb-3">${job.title}</h4>
+                
+                <div class="mb-3">
+                    <h6>Job Description</h6>
+                    <p class="text-muted">${job.description || 'No description provided'}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Requirements</h6>
+                    <p class="text-muted">${job.requirements || 'No requirements specified'}</p>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6>Location</h6>
+                        <p class="text-muted">${job.location || 'Not specified'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Experience Level</h6>
+                        <p class="text-muted">${job.experience_level ? job.experience_level.charAt(0).toUpperCase() + job.experience_level.slice(1) : 'Not specified'}</p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6>Job Type</h6>
+                        <p class="text-muted">${job.job_type ? job.job_type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Status</h6>
+                        <span class="badge bg-${job.status === 'active' ? 'success' : 'warning'}">${job.status.charAt(0).toUpperCase() + job.status.slice(1)}</span>
+                    </div>
+                </div>
+                
+                ${job.salary_min || job.salary_max ? `
+                <div class="mb-3">
+                    <h6>Salary Range</h6>
+                    <p class="text-muted">
+                        ${job.salary_min ? '$' + job.salary_min.toLocaleString() : 'Not specified'} 
+                        ${job.salary_min && job.salary_max ? ' - ' : ''} 
+                        ${job.salary_max ? '$' + job.salary_max.toLocaleString() : ''}
+                    </p>
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Candidate Matches</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <h3 class="text-primary">${job.total_matches}</h3>
+                            <small class="text-muted">Total Matches</small>
+                        </div>
+                        
+                        ${job.top_matches.length > 0 ? `
+                        <h6>Top Matches</h6>
+                        ${job.top_matches.map(match => `
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                                <div>
+                                    <strong>${match.name}</strong><br>
+                                    <small class="text-muted">${match.email}</small>
+                                </div>
+                                <span class="badge bg-${match.match_score >= 80 ? 'success' : match.match_score >= 60 ? 'warning' : 'secondary'}">
+                                    ${match.match_score}%
+                                </span>
+                            </div>
+                        `).join('')}
+                        ` : '<p class="text-muted">No matches yet</p>'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('jobDetailsContent').innerHTML = content;
+    
+    // Reinitialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Auto-refresh job status indicators
+function refreshJobStatuses() {
+    // This would refresh job statuses in real-time
+    console.log('Refreshing job statuses...');
+}
+
+// Delete job with confirmation
+function confirmDeleteJob(jobId, jobTitle) {
+    if (confirm(`Are you sure you want to permanently delete "${jobTitle}"?\n\nThis action cannot be undone and will also delete all candidate matches for this job.`)) {
+        // Create a form to submit the delete request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/jobs/${jobId}/delete`;
+        
+        // Add CSRF token if available
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.getAttribute('content');
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Refresh every 60 seconds
+setInterval(refreshJobStatuses, 60000);
+</script>
+{% endblock %}

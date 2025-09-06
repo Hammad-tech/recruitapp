@@ -1,0 +1,59 @@
+# Complete Recruitment Automation System in Python
+
+Build a full recruitment automation system using Python that handles everything from job posting to candidate matching.
+
+## Core Features
+
+**Web Dashboard (Flask/FastAPI):**
+- Job posting form and management
+- Candidate list with match scores
+- CV viewer and candidate details
+- Daily/weekly reports dashboard
+- Admin login system
+
+**Email & WhatsApp Integration:**
+- Automated email checking (IMAP) for CVs and applications
+- WhatsApp Business API integration for candidate messages
+- Auto-reply system for missing information requests
+- EU phone number filtering (block non-EU candidates)
+- File download and storage for CVs
+
+**AI-Powered Matching:**
+- CV parsing using OpenAI API or similar
+- Extract skills, experience, education from CVs
+- Match candidates to job requirements automatically
+- Generate match scores (0-100%)
+- Auto-assign candidates to relevant positions
+
+**Database & Storage:**
+- SQLite database for jobs, candidates, matches
+- Local file storage for CVs in organized folders
+- Candidate status tracking (new, shortlisted, rejected)
+- Job posting management (common/specific types)
+
+**Automation Features:**
+- Background tasks for email checking
+- Scheduled Facebook job posting across groups
+- Automated daily/weekly email reports
+- Real-time notifications for high matches (>60%)
+
+**Python Libraries to Use:**
+- Flask/FastAPI (web framework)
+- SQLAlchemy (database)
+- OpenAI/transformers (AI matching)
+- imaplib/email (email processing)
+- requests (WhatsApp API)
+- PyPDF2/pdfplumber (PDF parsing)
+- schedule/celery (background tasks)
+- jinja2 (email templates)
+
+**Main Components:**
+1. `app.py` - Main web application
+2. `email_bot.py` - Email monitoring and processing
+3. `whatsapp_bot.py` - WhatsApp message handling
+4. `cv_parser.py` - CV parsing and skill extraction
+5. `job_matcher.py` - AI-powered candidate-job matching
+6. `scheduler.py` - Background tasks and reports
+7. `database.py` - Database models and operations
+
+The system should run continuously, checking emails/WhatsApp every few minutes, automatically processing new candidates, and updating the web dashboard with real-time results.

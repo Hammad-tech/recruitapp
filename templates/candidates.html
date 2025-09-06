@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Candidates - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i data-feather="users"></i>
+            Candidates
+        </h1>
+        <div class="text-muted">
+            <small><i data-feather="info"></i> Candidates are automatically added via N8N automation</small>
+        </div>
+    </div>
+
+    {% if upload_mode %}
+    <!-- Upload CV Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="upload"></i>
+                        Upload Candidate CV
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">CV File *</label>
+                            <input type="file" class="form-control" id="file" name="file" required 
+                                   accept=".pdf,.doc,.docx,.txt">
+                            <div class="form-text">
+                                Supported formats: PDF, DOC, DOCX, TXT (Max size: 16MB)
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">Candidate Name</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       placeholder="Will be extracted from CV if not provided">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" id="email" name="email" required 
+                                       placeholder="candidate@example.com">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   placeholder="+1234567890">
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i data-feather="info" class="me-2"></i>
+                            <strong>AI Processing:</strong> Once uploaded, our AI will automatically extract candidate information, 
+                            skills, experience, and match them to suitable job positions.
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i data-feather="upload" class="me-1"></i>
+                                Upload & Process CV
+                            </button>
+                            <a href="{{ url_for('candidates') }}" class="btn btn-secondary">
+                                <i data-feather="x" class="me-1"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search Candidates</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search or '' }}" placeholder="Name, email, or location...">
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status Filter</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Statuses</option>
+                        {% for status in CandidateStatus %}
+                            <option value="{{ status.value }}" 
+                                    {% if status_filter == status.value %}selected{% endif %}>
+                                {{ status.value|title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i data-feather="search" class="me-1"></i>
+                        Search
+                    </button>
+                    {% if search or status_filter %}
+                        <a href="{{ url_for('candidates') }}" class="btn btn-outline-secondary">
+                            <i data-feather="x" class="me-1"></i>
+                            Clear
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Candidates List -->
+    <div class="card">
+        <div class="card-body">
+            {% if candidates.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Candidate</th>
+                                <th>Contact</th>
+                                <th>Experience</th>
+                                <th>Status</th>
+                                <th>Source</th>
+                                <th>Added</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in candidates.items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold">{{ candidate.name }}</div>
+                                            {% if candidate.location %}
+                                                <small class="text-muted">
+                                                    <i data-feather="map-pin" style="width: 0.8rem; height: 0.8rem;"></i>
+                                                    {{ candidate.location }}
+                                                </small>
+                                            {% endif %}
+                                            {% if candidate.skills %}
+                                                <div class="mt-1">
+                                                    {% for skill in candidate.skills[:3] %}
+                                                        <span class="badge bg-secondary me-1">{{ skill }}</span>
+                                                    {% endfor %}
+                                                    {% if candidate.skills|length > 3 %}
+                                                        <span class="badge bg-light text-dark">+{{ candidate.skills|length - 3 }} more</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>{{ candidate.email }}</div>
+                                    {% if candidate.phone %}
+                                        <small class="text-muted">{{ candidate.phone }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if candidate.experience_years %}
+                                        <span class="badge bg-info">{{ candidate.experience_years }} years</span>
+                                    {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'warning' if candidate.status.value == 'new' else 'info' if candidate.status.value == 'reviewed' else 'success' if candidate.status.value == 'shortlisted' else 'danger' if candidate.status.value == 'rejected' else 'primary' }}">
+                                        {{ candidate.status.value|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ candidate.source|title if candidate.source else 'Unknown' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">Recently added</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                                           class="btn btn-outline-primary" title="View Details">
+                                            <i data-feather="eye"></i>
+                                        </a>
+                                        {% if candidate.cv_filename %}
+                                            <a href="{{ url_for('download_file', filename=candidate.cv_filename) }}" 
+                                               class="btn btn-outline-success" title="Download CV" target="_blank">
+                                                <i data-feather="download"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if candidates.pages > 1 %}
+                <nav aria-label="Candidates pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if candidates.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('candidates', page=candidates.prev_num, search=search, status=status_filter) }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in candidates.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != candidates.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('candidates', page=page_num, search=search, status=status_filter) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if candidates.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('candidates', page=candidates.next_num, search=search, status=status_filter) }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        Showing {{ candidates.items|length }} of {{ candidates.total }} candidates
+                        {% if search or status_filter %}(filtered){% endif %}
+                    </small>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    {% if search or status_filter %}
+                        <i data-feather="search" style="width: 4rem; height: 4rem;" class="text-muted"></i>
+                        <h4 class="text-muted mt-3">No candidates found</h4>
+                        <p class="text-muted">Try adjusting your search criteria or filters.</p>
+                        <a href="{{ url_for('candidates') }}" class="btn btn-outline-primary">
+                            <i data-feather="x" class="me-1"></i>
+                            Clear Filters
+                        </a>
+                    {% else %}
+                        <i data-feather="users" style="width: 4rem; height: 4rem;" class="text-muted"></i>
+                        <h4 class="text-muted mt-3">No candidates yet</h4>
+                        <p class="text-muted">Candidates will automatically appear when CVs are processed through N8N automation.</p>
+                        <div class="alert alert-info mt-3">
+                            <i data-feather="info" class="me-2"></i>
+                            <strong>N8N Integration Active</strong><br>
+                            <small>CVs are automatically collected from email and processed with AI</small>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

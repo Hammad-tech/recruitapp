@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Job - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i data-feather="plus-circle"></i>
+                        Create New Job Posting
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('create_job') }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="title" class="form-label">Job Title *</label>
+                                <input type="text" class="form-control" id="title" name="title" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="location" class="form-label">Location</label>
+                                <input type="text" class="form-control" id="location" name="location" placeholder="e.g., New York, NY">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="experience_level" class="form-label">Experience Level</label>
+                                <select class="form-select" id="experience_level" name="experience_level">
+                                    <option value="">Select Experience Level</option>
+                                    <option value="entry">Entry Level (0-2 years)</option>
+                                    <option value="mid">Mid Level (3-7 years)</option>
+                                    <option value="senior">Senior Level (8+ years)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="job_type" class="form-label">Job Type</label>
+                                <select class="form-select" id="job_type" name="job_type">
+                                    <option value="">Select Job Type</option>
+                                    <option value="full-time">Full Time</option>
+                                    <option value="part-time">Part Time</option>
+                                    <option value="contract">Contract</option>
+                                    <option value="internship">Internship</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="salary_min" class="form-label">Minimum Salary</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="salary_min" name="salary_min" placeholder="50000">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="salary_max" class="form-label">Maximum Salary</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="salary_max" name="salary_max" placeholder="80000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Job Description *</label>
+                            <textarea class="form-control" id="description" name="description" rows="4" required 
+                                      placeholder="Provide a detailed description of the role, responsibilities, and what the candidate will be doing..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="requirements" class="form-label">Requirements *</label>
+                            <textarea class="form-control" id="requirements" name="requirements" rows="4" required
+                                      placeholder="List the required skills, qualifications, and experience needed for this position..."></textarea>
+                            <div class="form-text">
+                                Be specific about required skills, technologies, and experience levels. This helps with better candidate matching.
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('jobs') }}" class="btn btn-secondary">
+                                <i data-feather="arrow-left"></i>
+                                Back to Jobs
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i data-feather="plus-circle"></i>
+                                Create Job
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-resize textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    });
+
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const title = document.getElementById('title').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const requirements = document.getElementById('requirements').value.trim();
+
+        if (!title || !description || !requirements) {
+            e.preventDefault();
+            alert('Please fill in all required fields marked with *');
+            return false;
+        }
+
+        // Salary validation
+        const salaryMin = document.getElementById('salary_min').value;
+        const salaryMax = document.getElementById('salary_max').value;
+        
+        if (salaryMin && salaryMax && parseInt(salaryMin) > parseInt(salaryMax)) {
+            e.preventDefault();
+            alert('Minimum salary cannot be greater than maximum salary');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block title %}{{ candidate.name }} - Candidate Details{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('candidates') }}">Candidates</a></li>
+            <li class="breadcrumb-item active">{{ candidate.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Candidate Overview -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="user"></i>
+                        Candidate Profile
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" 
+                             style="width: 80px; height: 80px; font-size: 2rem; color: white;">
+                            {{ candidate.name[0].upper() if candidate.name else 'U' }}
+                        </div>
+                        <h4 class="mt-2 mb-0">{{ candidate.name }}</h4>
+                        <p class="text-muted">
+                            {% if candidate.location %}
+                                <i data-feather="map-pin" style="width: 0.8rem; height: 0.8rem;"></i>
+                                {{ candidate.location }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <!-- Contact Information -->
+                    <div class="mb-3">
+                        <h6 class="text-muted">Contact Information</h6>
+                        <div class="mb-2">
+                            <i data-feather="mail" style="width: 0.9rem; height: 0.9rem;" class="me-2"></i>
+                            <a href="mailto:{{ candidate.email }}" class="text-decoration-none">{{ candidate.email }}</a>
+                        </div>
+                        {% if candidate.phone %}
+                        <div class="mb-2">
+                            <i data-feather="phone" style="width: 0.9rem; height: 0.9rem;" class="me-2"></i>
+                            <a href="tel:{{ candidate.phone }}" class="text-decoration-none">{{ candidate.phone }}</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Status and Actions -->
+                    <div class="mb-3">
+                        <h6 class="text-muted">Status</h6>
+                        <form method="POST" action="{{ url_for('update_candidate_status', candidate_id=candidate.id) }}" class="d-flex gap-2">
+                            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="new" {% if candidate.status.value == 'new' %}selected{% endif %}>New</option>
+                                <option value="reviewed" {% if candidate.status.value == 'reviewed' %}selected{% endif %}>Reviewed</option>
+                                <option value="shortlisted" {% if candidate.status.value == 'shortlisted' %}selected{% endif %}>Shortlisted</option>
+                                <option value="rejected" {% if candidate.status.value == 'rejected' %}selected{% endif %}>Rejected</option>
+                                <option value="hired" {% if candidate.status.value == 'hired' %}selected{% endif %}>Hired</option>
+                            </select>
+                        </form>
+                    </div>
+                    
+                    <!-- CV & Files -->
+                    <div class="mb-3">
+                        {% if candidate.cv_drive_link %}
+                        <a href="{{ candidate.cv_drive_link }}" 
+                           class="btn btn-success btn-sm w-100" target="_blank">
+                            <i data-feather="external-link" class="me-1"></i>
+                            View CV on Google Drive
+                        </a>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Metadata -->
+                    <div class="small text-muted">
+                        <div class="mb-1">
+                            <strong>Source:</strong> {{ candidate.source|title if candidate.source else 'Unknown' }}
+                        </div>
+                        <div class="mb-1">
+                            <strong>Added:</strong> {{ candidate.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                        {% if candidate.last_updated != candidate.created_at %}
+                        <div class="mb-1">
+                            <strong>Updated:</strong> {{ candidate.last_updated.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Candidate Details -->
+        <div class="col-md-8 mb-4">
+            <!-- Summary -->
+            {% if candidate.summary %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="file-text"></i>
+                        Professional Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ candidate.summary }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- CV Text Content -->
+            {% if candidate.cv_text %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="file-text"></i>
+                        CV Content
+                        <button class="btn btn-sm btn-outline-secondary float-end" 
+                                onclick="toggleCVContent()" id="toggleCVBtn">
+                            <i data-feather="chevron-down"></i>
+                        </button>
+                    </h5>
+                </div>
+                <div class="card-body" id="cvContent" style="display: none;">
+                    <div class="bg-light p-3 rounded">
+                        <pre class="mb-0 text-muted" style="white-space: pre-wrap; font-size: 0.9rem;">{{ candidate.cv_text }}</pre>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Skills -->
+            {% if candidate.skills %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="zap"></i>
+                        Skills & Technologies
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for skill in candidate.skills %}
+                        <span class="badge bg-primary me-2 mb-2">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Experience -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="briefcase"></i>
+                        Work Experience
+                        {% if candidate.experience_years %}
+                            <span class="badge bg-info ms-2">{{ candidate.experience_years }} years total</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if candidate.work_experience %}
+                        {% for job in candidate.work_experience %}
+                        <div class="mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ job.title if job.title else 'Position' }}</h6>
+                                    <p class="text-muted mb-1">{{ job.company if job.company else 'Company' }}</p>
+                                    <div class="small text-muted mb-2">
+                                        {% if job.location %}
+                                            <i data-feather="map-pin" class="me-1" style="width: 0.8rem; height: 0.8rem;"></i>
+                                            {{ job.location }}
+                                        {% endif %}
+                                        {% if job.start_date or job.end_date %}
+                                            <span class="ms-3">
+                                                {% if job.start_date %}{{ job.start_date }}{% endif %}
+                                                {% if job.start_date and job.end_date %} - {% endif %}
+                                                {% if job.end_date %}{{ job.end_date }}{% endif %}
+                                                {% if job.current %}<span class="badge bg-success ms-1">Current</span>{% endif %}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% if job.description %}
+                                <p class="mt-2 mb-2">{{ job.description }}</p>
+                            {% endif %}
+                            {% if job.technologies %}
+                                <div class="mb-2">
+                                    <small class="text-muted">Technologies:</small>
+                                    {% for tech in job.technologies %}
+                                        <span class="badge bg-light text-dark me-1">{{ tech }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No work experience information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Education -->
+            {% if candidate.education %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="book"></i>
+                        Education
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for edu in candidate.education %}
+                    <div class="mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                        <h6 class="mb-1">{{ edu.degree if edu.degree else 'Degree' }}</h6>
+                        <p class="text-muted mb-1">{{ edu.institution if edu.institution else 'Institution' }}</p>
+                        <div class="small text-muted mb-2">
+                            {% if edu.field %}
+                                <span class="me-3">
+                                    <i data-feather="book-open" class="me-1" style="width: 0.8rem; height: 0.8rem;"></i>
+                                    {{ edu.field }}
+                                </span>
+                            {% endif %}
+                            {% if edu.graduation_year %}
+                                <span class="me-3">
+                                    <i data-feather="calendar" class="me-1" style="width: 0.8rem; height: 0.8rem;"></i>
+                                    {{ edu.graduation_year }}
+                                </span>
+                            {% endif %}
+                            {% if edu.gpa %}
+                                <span class="badge bg-info">{{ edu.gpa }} GPA</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Job Matches -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="target"></i>
+                        Job Matches
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if job_matches %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Job Title</th>
+                                        <th>Match Score</th>
+                                        <th>Matching Skills</th>
+                                        <th>Missing Skills</th>
+                                        <th>Match Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for match, job in job_matches %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">{{ job.title }}</div>
+                                            <small class="text-muted">{{ job.location or 'Location not specified' }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress me-2" style="width: 60px; height: 8px;">
+                                                    <div class="progress-bar bg-{{ 'success' if match.match_score >= 80 else 'info' if match.match_score >= 60 else 'warning' if match.match_score >= 40 else 'danger' }}" 
+                                                         style="width: {{ match.match_score }}%"></div>
+                                                </div>
+                                                <span class="badge bg-{{ 'success' if match.match_score >= 80 else 'info' if match.match_score >= 60 else 'warning' if match.match_score >= 40 else 'danger' }}">
+                                                    {{ match.match_score }}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if match.matching_skills %}
+                                                {% for skill in match.matching_skills[:3] %}
+                                                    <span class="badge bg-success me-1 mb-1">{{ skill }}</span>
+                                                {% endfor %}
+                                                {% if match.matching_skills|length > 3 %}
+                                                    <span class="badge bg-light text-dark">+{{ match.matching_skills|length - 3 }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">None specified</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if match.missing_skills %}
+                                                {% for skill in match.missing_skills[:2] %}
+                                                    <span class="badge bg-danger me-1 mb-1">{{ skill }}</span>
+                                                {% endfor %}
+                                                {% if match.missing_skills|length > 2 %}
+                                                    <span class="badge bg-light text-dark">+{{ match.missing_skills|length - 2 }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-success">All requirements met</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                {{ match.match_reason[:100] + '...' if match.match_reason and match.match_reason|length > 100 else match.match_reason or 'No reason provided' }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewJobDetails({{ job.id }})">
+                                                <i data-feather="eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i data-feather="search" style="width: 3rem; height: 3rem;" class="text-muted"></i>
+                            <h5 class="text-muted mt-3">No job matches found</h5>
+                            <p class="text-muted">This candidate hasn't been matched to any jobs yet, or there are no active job postings.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Job Details Modal -->
+<div class="modal fade" id="jobDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Job Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="jobDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewJobDetails(jobId) {
+    // Show loading spinner
+    document.getElementById('jobDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading job details...</p>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('jobDetailsModal'));
+    modal.show();
+    
+    // Fetch job details from API
+    fetch(`/api/jobs/${jobId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch job details');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayJobDetails(data.job);
+            } else {
+                throw new Error(data.error || 'Failed to load job details');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching job details:', error);
+            document.getElementById('jobDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i data-feather="alert-triangle" class="me-2"></i>
+                    <strong>Error loading job details:</strong><br>
+                    ${error.message}
+                </div>
+            `;
+            // Reinitialize feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        });
+}
+
+function displayJobDetails(job) {
+    const content = `
+        <div class="row">
+            <div class="col-md-8">
+                <h4 class="text-primary mb-3">${job.title}</h4>
+                
+                <div class="mb-3">
+                    <h6>Job Description</h6>
+                    <p class="text-muted">${job.description || 'No description provided'}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Requirements</h6>
+                    <p class="text-muted">${job.requirements || 'No requirements specified'}</p>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6>Location</h6>
+                        <p class="text-muted">${job.location || 'Not specified'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Experience Level</h6>
+                        <p class="text-muted">${job.experience_level ? job.experience_level.charAt(0).toUpperCase() + job.experience_level.slice(1) : 'Not specified'}</p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6>Job Type</h6>
+                        <p class="text-muted">${job.job_type ? job.job_type.replace('-', ' ').replace(/\\b\\w/g, l => l.toUpperCase()) : 'Not specified'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Status</h6>
+                        <span class="badge bg-${job.status === 'active' ? 'success' : 'warning'}">${job.status.charAt(0).toUpperCase() + job.status.slice(1)}</span>
+                    </div>
+                </div>
+                
+                ${job.salary_min || job.salary_max ? `
+                <div class="mb-3">
+                    <h6>Salary Range</h6>
+                    <p class="text-muted">
+                        ${job.salary_min ? '$' + job.salary_min.toLocaleString() : 'Not specified'}
+                        ${job.salary_min && job.salary_max ? ' - ' : ''}
+                        ${job.salary_max ? '$' + job.salary_max.toLocaleString() : ''}
+                    </p>
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Candidate Matches</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <h3 class="text-primary">${job.total_matches}</h3>
+                            <small class="text-muted">Total Matches</small>
+                        </div>
+                        
+                        ${job.top_matches.length > 0 ? `
+                        <h6>Top Matches</h6>
+                        ${job.top_matches.map(match => `
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                                <div>
+                                    <strong>${match.name}</strong><br>
+                                    <small class="text-muted">${match.email}</small>
+                                </div>
+                                <span class="badge bg-${match.match_score >= 80 ? 'success' : match.match_score >= 60 ? 'warning' : 'secondary'}">
+                                    ${match.match_score}%
+                                </span>
+                            </div>
+                        `).join('')}
+                        ` : '<p class="text-muted">No matches yet</p>'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('jobDetailsContent').innerHTML = content;
+    
+    // Reinitialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+function toggleCVContent() {
+    const content = document.getElementById('cvContent');
+    const btn = document.getElementById('toggleCVBtn');
+    const icon = btn.querySelector('i');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        btn.innerHTML = '<i data-feather="chevron-up"></i>';
+    } else {
+        content.style.display = 'none';
+        btn.innerHTML = '<i data-feather="chevron-down"></i>';
+    }
+    
+    // Reinitialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+// Auto-update match scores periodically
+function refreshMatchScores() {
+    // This would refresh match scores in real-time
+    console.log('Refreshing match scores...');
+}
+
+// Refresh every 2 minutes
+setInterval(refreshMatchScores, 120000);
+</script>
+{% endblock %}
